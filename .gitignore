@@ -1,0 +1,51 @@
+__pycache__/
+*.pyc
+.venv/
+.env
+.pytest_cache/
+data/papers/*
+!data/papers/.gitkeep
+data/vector/*
+!data/vector/.gitkeep
+data/reports/*
+!data/reports/.gitkeep
+
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyd
+.Python
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Logs
+*.log
+
+# Generated data and local indexes
+chroma_db/
+vector_store/
+data/raw/
+data/processed/
+outputs/
+temp/
+
+# OS files
+.DS_Store
+Thumbs.db
+

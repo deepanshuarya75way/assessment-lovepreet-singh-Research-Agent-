@@ -1,0 +1,101 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Research Agent v4</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Inter,system-ui,Segoe UI;background:#f3f5f9;color:#172033}.wrap{max-width:1320px;margin:auto;padding:22px}
+.hero{background:#101828;color:white;border-radius:22px;padding:28px;box-shadow:0 12px 40px #0002}.hero h1{font-size:38px;margin:0 0 7px}.hero p{margin:0;opacity:.8}.panel{background:#fff;border-radius:18px;padding:20px;margin-top:17px;box-shadow:0 5px 25px #0001}
+textarea{width:100%;min-height:115px;border:1px solid #d9dee8;border-radius:12px;padding:14px;font-size:15px}.row{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-top:12px}label{font-size:12px;color:#667085}input,select,button{display:block;margin-top:5px;padding:10px;border:1px solid #d9dee8;border-radius:9px}button{background:#101828;color:#fff;font-weight:750;border:0;cursor:pointer}.secondary{background:#fff;color:#101828;border:1px solid #d9dee8}.steps{display:flex;gap:5px;flex-wrap:wrap;margin-top:13px}.step{background:#eaecf0;padding:6px 9px;border-radius:99px;font-size:11px}.on{background:#101828;color:#fff}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(285px,1fr));gap:12px}.card{border:1px solid #e4e7ec;padding:15px;border-radius:14px}.title{font-weight:800}.tag{background:#eef2ff;border-radius:99px;padding:4px 7px;margin:2px;font-size:11px;display:inline-block}.evidence{border-left:3px solid #667085;padding-left:10px;margin:9px 0}.hidden{display:none}.error{color:#b42318}a{color:#3157d5;text-decoration:none}.bar{height:8px;background:#e6e9ef;border-radius:99px;overflow:hidden}.fill{height:100%;width:0;background:#101828;transition:.3s}.tablewrap{overflow:auto}table{border-collapse:collapse;width:100%}th,td{border:1px solid #e2e5ea;padding:8px;text-align:left;vertical-align:top}th{background:#f8fafc}.status-supported{color:#067647;font-weight:800}.status-partial{color:#b54708;font-weight:800}.status-unsupported{color:#b42318;font-weight:800}.viz{height:440px;border:1px solid #e2e5ea;border-radius:14px;overflow:auto;background:#fafbfc}.viz svg{display:block;min-width:100%;width:auto;max-width:none}.viz-note{padding:12px;color:#667085;font-size:13px}svg{width:100%;height:100%}.history{display:flex;gap:8px;flex-wrap:wrap}.history button{font-size:12px}.downloads{display:flex;gap:8px;flex-wrap:wrap}.downloads a{padding:9px 12px;border:1px solid #d9dee8;border-radius:9px}.small{font-size:12px;color:#667085}.two{display:grid;grid-template-columns:1fr 1fr;gap:15px}@media(max-width:800px){.two{grid-template-columns:1fr}}
+</style></head>
+<body><div class="wrap">
+<div class="hero"><h1>🔬 Research Agent v4</h1><p>Autonomous scholarly research • hybrid RAG • evidence verification • gap map • similarity map • exportable reports</p></div>
+
+<div class="panel"><h2>Research question</h2>
+<textarea id="q" placeholder="What are recent applications of generative AI in drug discovery, and what research gaps remain?"></textarea>
+<div class="row"><label>From<input id="yf" type="number" value="2020"></label><label>To<input id="yt" type="number" value="2026"></label>
+<label>Papers<select id="n"><option>6</option><option selected>8</option><option>10</option><option>12</option></select></label>
+<label>Citations<select id="style"><option selected>IEEE</option><option>APA</option><option>MLA</option></select></label>
+<button onclick="run()">Run Research Agent</button></div>
+<div class="steps" id="steps"></div><div class="bar"><div class="fill" id="fill"></div></div><div id="status" class="small">Ready.</div></div>
+
+<div class="panel"><h3>Research history</h3><div id="history" class="history"></div></div>
+
+<div id="out" class="hidden">
+<div class="panel"><h2>Literature synthesis</h2><pre id="syn"></pre></div>
+<div class="two">
+<div class="panel"><h2>Research gap map</h2><div id="gaps"></div></div>
+<div class="panel"><h2>Hypotheses</h2><div id="hyps"></div></div>
+</div>
+<div class="panel"><h2>Claim verification</h2><div id="claims"></div></div>
+<div class="panel"><h2>Cross-paper comparison</h2><div class="tablewrap"><table id="tbl"></table></div></div>
+<div class="panel"><h2>Potential contradictions</h2><div id="contra"></div></div>
+<div class="two"><div class="panel"><h2>Paper relationship graph</h2><div class="viz" id="graph"></div></div><div class="panel"><h2>Paper similarity map</h2><div class="viz" id="sim"></div></div></div>
+<div class="panel"><h2>Source credibility</h2><div id="papers" class="grid"></div></div>
+<div class="panel"><h2>Evidence</h2><div id="analysis"></div></div>
+<div class="panel"><h2>Follow-up research chat</h2><textarea id="chatq" style="min-height:75px" placeholder="Which papers provide evidence for the main limitation?"></textarea><button onclick="chat()">Ask</button><pre id="chatans"></pre></div>
+<div class="panel"><h2>Export</h2><div id="downloads" class="downloads"></div><h3>References</h3><pre id="refs"></pre></div>
+</div></div>
+<script>
+const $=id=>document.getElementById(id),steps=["Planner","Search","Retrieve","Analyze","Contradictions","Synthesis","Verify","Citations","Graphs","Report"];let RUN="";
+function esc(s){return(s??"").toString().replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));}
+function showSteps(n){$("steps").innerHTML=steps.map((x,i)=>`<span class="step ${i<=n?"on":""}">${i+1}. ${x}</span>`).join("");}
+function historyRender(){let h=JSON.parse(localStorage.getItem("research_history")||"[]");$("history").innerHTML=h.length?h.map(x=>`<button class="secondary" onclick='loadHistory(${JSON.stringify(x).replaceAll("'","&#39;")})'>${esc(x.question.slice(0,70))}</button>`).join(""):"<span class='small'>No saved runs yet.</span>";}
+function loadHistory(x){$("q").value=x.question;RUN=x.run_id;fetch("/api/result/"+RUN).then(r=>r.json()).then(render);}
+historyRender();
+async function run(){
+ const q=$("q").value.trim();if(q.length<8)return alert("Enter a research question.");
+ $("out").classList.add("hidden");showSteps(0);$("fill").style.width="2%";$("status").textContent="Starting agents…";
+ const r=await fetch("/api/research",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({question:q,year_from:+$("yf").value,year_to:+$("yt").value,max_papers:+$("n").value,citation_style:$("style").value})});
+ if(!r.ok){$("status").textContent=await r.text();return}
+ const start=await r.json();RUN=start.run_id;
+ const es=new EventSource(start.events_url);
+ es.onmessage=async e=>{const d=JSON.parse(e.data);$("fill").style.width=d.progress+"%";$("status").textContent=d.message;
+  let idx=steps.findIndex(x=>x.toLowerCase()===String(d.step||"").toLowerCase());if(idx>=0)showSteps(idx);if(d.step==="done"&&d.message==="completed")showSteps(9);
+  if(d.step==="done"){es.close();if(d.message==="completed"){showSteps(9);$("fill").style.width="100%";let rr=await fetch("/api/result/"+RUN);let data=await rr.json();render(data);saveHistory(data);}else $("status").textContent="Research failed. Check the server console.";}
+ };
+}
+function saveHistory(d){let h=JSON.parse(localStorage.getItem("research_history")||"[]").filter(x=>x.run_id!==d.run_id);h.unshift({run_id:d.run_id,question:d.question});localStorage.setItem("research_history",JSON.stringify(h.slice(0,10)));historyRender();}
+function render(d){
+ $("out").classList.remove("hidden");$("syn").textContent=d.synthesis;
+ $("gaps").innerHTML=(d.gaps||[]).map(g=>`<div class="card"><b>${esc(g.title)}</b><p>${esc(g.description)}</p><span class="tag">strength ${(g.strength*100).toFixed(0)}%</span></div>`).join("");
+ $("hyps").innerHTML=(d.hypotheses||[]).map(h=>`<div class="card"><b>${esc(h.hypothesis)}</b><p><b>Rationale:</b> ${esc(h.rationale)}</p><p><b>Test:</b> ${esc(h.test_design)}</p></div>`).join("");
+ $("claims").innerHTML=(d.claims||[]).map(c=>`<div class="card"><b class="${c.status==="Supported"?"status-supported":c.status.includes("Partially")?"status-partial":"status-unsupported"}">${esc(c.status)} — ${(c.confidence*100).toFixed(0)}%</b><p>${esc(c.claim)}</p><small>${esc(c.reason)}</small>${(c.evidence||[]).map(e=>`<div class="evidence">“${esc(e.quote)}”</div>`).join("")}</div>`).join("");
+ let rows=d.comparison||[];$("tbl").innerHTML="<tr><th>Paper</th><th>Method</th><th>Dataset</th><th>Findings</th><th>Limitations</th><th>Quality</th></tr>"+rows.map(x=>`<tr><td>${esc(x.paper)}</td><td>${esc(x.method)}</td><td>${esc(x.dataset)}</td><td>${esc(x.findings)}</td><td>${esc(x.limitations)}</td><td>${x.quality||0}</td></tr>`).join("");
+ $("contra").innerHTML=(d.contradictions||[]).length?d.contradictions.map(x=>`<div class="card"><b>${esc(x.topic)}</b><p>${esc(x.explanation)}</p><small>${esc(x.paper_a)} ↔ ${esc(x.paper_b)}</small></div>`).join(""):"No potential contradictions detected.";
+ $("papers").innerHTML=d.papers.map((p,i)=>`<div class="card"><div class="title">[P${i+1}] ${esc(p.title)}</div><p>${esc((p.authors||[]).slice(0,3).join(", "))}</p><span class="tag">${p.year||"n.d."}</span><span class="tag">relevance ${p.relevance}</span><span class="tag">quality ${p.quality}</span><span class="tag">${esc(p.credibility_label)}</span><p>${esc((p.abstract||"").slice(0,360))}</p>${p.url?`<a target="_blank" href="${esc(p.url)}">Source ↗</a>`:""} ${p.pdf_url?`<a target="_blank" href="${esc(p.pdf_url)}">PDF ↗</a>`:""}</div>`).join("");
+ $("analysis").innerHTML=d.analyses.map((a,i)=>`<div class="card" style="margin-bottom:12px"><h3>[P${i+1}] ${esc(a.title)}</h3><b>Summary</b><p>${esc(a.summary)}</p><b>Method</b><p>${esc(a.method)}</p><b>Dataset</b><p>${esc(a.dataset)}</p><b>Findings</b><p>${esc(a.findings)}</p><b>Limitations</b><p>${esc(a.limitations)}</p><b>Evidence</b>${(a.evidence||[]).map(e=>`<div class="evidence">“${esc(e.quote)}”<br><small>${e.score} · ${e.url?`<a target="_blank" href="${esc(e.url)}">source</a>`:""}</small></div>`).join("")}</div>`).join("");
+ $("refs").textContent=(d.references||[]).join("\\n");
+ $("downloads").innerHTML=Object.entries(d.report_urls||{}).map(([k,u])=>`<a href="${u}" target="_blank">Download ${k.toUpperCase()}</a>`).join("");
+ drawGraph("graph",d.knowledge_graph);drawGraph("sim",d.similarity,true);
+}
+function drawGraph(id,g,weighted=false){
+ const el=$(id), w=Math.max(el.clientWidth||560,560), nodes=(g&&g.nodes)||[], edges=(g&&g.edges)||[];
+ if(!nodes.length){el.innerHTML="<div class='viz-note'>No graph data was generated for this run.</div>";return}
+ const escSvg=s=>esc(s).replace(/&#039;/g,"&#39;");
+ const wrap=(label,max=22)=>{let words=String(label||"Untitled").split(/\s+/),lines=[],line="";for(const word of words){if((line+" "+word).trim().length>max&&line){lines.push(line);line=word}else line=(line+" "+word).trim()}if(line)lines.push(line);return lines.slice(0,3)};
+ let positions={},svg="",height;
+ if(weighted){
+   // Similarity map: readable card grid with labelled edges, not tiny overlapping dots.
+   const cols=2, cardW=245, cardH=74, gapX=28, gapY=24, left=20, top=28;
+   const rows=Math.ceil(nodes.length/cols);height=Math.max(440,top*2+rows*(cardH+gapY));
+   nodes.forEach((n,i)=>{const col=i%cols,row=Math.floor(i/cols);positions[n.id]=[left+col*(cardW+gapX),top+row*(cardH+gapY)]});
+   const svgW=Math.max(w,2*left+2*cardW+gapX);svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${svgW} ${height}" style="width:${svgW}px;height:${height}px">`;
+   edges.forEach(e=>{const A=positions[e.source],B=positions[e.target];if(!A||!B)return;const x1=A[0]+cardW/2,y1=A[1]+cardH/2,x2=B[0]+cardW/2,y2=B[1]+cardH/2;svg+=`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#7c8db5" stroke-width="${1.5+Math.min(3,(e.weight||0)*4)}" opacity=".75"/>`});
+   nodes.forEach(n=>{const [x,y]=positions[n.id],lines=wrap(n.label,31);svg+=`<rect x="${x}" y="${y}" width="${cardW}" height="${cardH}" rx="12" fill="#fff" stroke="#b8c4d8" stroke-width="1.5"/><text x="${x+12}" y="${y+21}" font-size="12" font-weight="700" fill="#172033">${escSvg(n.id)}</text>`;lines.forEach((line,j)=>svg+=`<text x="${x+12}" y="${y+40+j*14}" font-size="11" fill="#344054">${escSvg(line)}</text>`);});
+   svg+="</svg>";
+   el.innerHTML=svg+(edges.length?"":`<div class="viz-note">No paper pairs crossed the similarity threshold in this run. The papers are shown individually; this is not a failure.</div>`);
+ }else{
+   // Relationship map: paper cards in one column, shared concepts in a second column.
+   const paperNodes=nodes.filter(n=>n.type==="paper"), conceptNodes=nodes.filter(n=>n.type!=="paper");
+   const cardW=250,cardH=54,left=20,mid=390,top=24,gap=18;
+   height=Math.max(440,top*2+Math.max(paperNodes.length,conceptNodes.length)*(cardH+gap));
+   paperNodes.forEach((n,i)=>positions[n.id]=[left,top+i*(cardH+gap)]);
+   conceptNodes.forEach((n,i)=>positions[n.id]=[mid,top+i*(cardH+gap)]);
+   const svgW=Math.max(w,mid+cardW+24);svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${svgW} ${height}" style="width:${svgW}px;height:${height}px">`;
+   edges.forEach(e=>{const A=positions[e.source],B=positions[e.target];if(!A||!B)return;svg+=`<path d="M ${A[0]+cardW} ${A[1]+cardH/2} C ${A[0]+cardW+45} ${A[1]+cardH/2}, ${B[0]-45} ${B[1]+cardH/2}, ${B[0]} ${B[1]+cardH/2}" fill="none" stroke="#98a2b3" stroke-width="1.5" opacity=".75"/>`});
+   paperNodes.forEach(n=>{const [x,y]=positions[n.id],lines=wrap(n.label,34);svg+=`<rect x="${x}" y="${y}" width="${cardW}" height="${cardH}" rx="10" fill="#eaf2ff" stroke="#7da2e8"/><text x="${x+10}" y="${y+16}" font-size="10" font-weight="800" fill="#174ea6">${escSvg(n.id)} · PAPER</text><text x="${x+10}" y="${y+33}" font-size="11" fill="#172033">${escSvg(lines[0]||"")}</text><text x="${x+10}" y="${y+46}" font-size="10" fill="#344054">${escSvg(lines[1]||"")}</text>`});
+   conceptNodes.forEach(n=>{const [x,y]=positions[n.id],lines=wrap(n.label,34),isMethod=n.type==="method";svg+=`<rect x="${x}" y="${y}" width="${cardW}" height="${cardH}" rx="10" fill="${isMethod?"#e8f7ef":"#fff4e5"}" stroke="${isMethod?"#75c49a":"#e6b566"}"/><text x="${x+10}" y="${y+16}" font-size="10" font-weight="800" fill="#344054">${escSvg((n.type||"concept").toUpperCase())}</text><text x="${x+10}" y="${y+34}" font-size="11" fill="#172033">${escSvg(lines[0]||"")}</text><text x="${x+10}" y="${y+47}" font-size="10" fill="#344054">${escSvg(lines[1]||"")}</text>`});
+   svg+="</svg>";
+   el.innerHTML=svg+(edges.length?"":"<div class='viz-note'>No paper-to-method/dataset links were confidently extracted. Check the evidence cards; this graph does not infer missing relationships.</div>");
+ }
+}
+async function chat(){if(!RUN)return;let q=$("chatq").value.trim();if(!q)return;let r=await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({run_id:RUN,question:q})});let d=await r.json();$("chatans").textContent=d.answer||d.detail;}
+</script></body></html>

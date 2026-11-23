@@ -13,6 +13,7 @@ textarea{width:100%;min-height:115px;border:1px solid #d9dee8;border-radius:12px
 <div class="row"><label>From<input id="yf" type="number" value="2020"></label><label>To<input id="yt" type="number" value="2026"></label>
 <label>Papers<select id="n"><option>6</option><option selected>8</option><option>10</option><option>12</option></select></label>
 <label>Citations<select id="style"><option selected>IEEE</option><option>APA</option><option>MLA</option></select></label>
+<label style="display:flex;align-items:center;gap:7px;font-size:13px;color:#344054"><input type="checkbox" id="exact_match_boost" style="margin:0">Priortize exact matches</label>
 <button onclick="run()">Run Research Agent</button></div>
 <div class="steps" id="steps"></div><div class="bar"><div class="fill" id="fill"></div></div><div id="status" class="small">Ready.</div></div>
 
@@ -43,7 +44,7 @@ historyRender();
 async function run(){
  const q=$("q").value.trim();if(q.length<8)return alert("Enter a research question.");
  $("out").classList.add("hidden");showSteps(0);$("fill").style.width="2%";$("status").textContent="Starting agents…";
- const r=await fetch("/api/research",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({question:q,year_from:+$("yf").value,year_to:+$("yt").value,max_papers:+$("n").value,citation_style:$("style").value})});
+ const r=await fetch("/api/research",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({question:q,year_from:+$("yf").value,year_to:+$("yt").value,max_papers:+$("n").value,citation_style:$("style").value, exact_match_boost:$("exact_match_boost").checked})});
  if(!r.ok){$("status").textContent=await r.text();return}
  const start=await r.json();RUN=start.run_id;
  const es=new EventSource(start.events_url);

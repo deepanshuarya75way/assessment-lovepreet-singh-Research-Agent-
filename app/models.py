@@ -7,6 +7,7 @@ class ResearchRequest(BaseModel):
     year_to: int = 2026
     max_papers: int = Field(default=8, ge=3, le=15)
     citation_style: str = Field(default="IEEE")
+    exact_match_boost: bool =False
 
 class Paper(BaseModel):
     id: str

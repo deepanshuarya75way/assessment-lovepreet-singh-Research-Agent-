@@ -8,16 +8,32 @@ STOP={"what","which","how","are","the","and","for","with","from","into","recent"
 
 def terms(q):return [x for x in re.findall(r"[A-Za-z][A-Za-z0-9-]{2,}",q.lower()) if x not in STOP][:25]
 
-def rank(q,papers):
+def rank(q,papers,exact_match_boost=False):
     docs=[(p.title+" "+p.abstract).strip() for p in papers]
     if not docs or not any(docs):return papers
     v=TfidfVectorizer(stop_words="english",ngram_range=(1,2),max_features=20000)
     m=v.fit_transform(docs+[q]);scores=cosine_similarity(m[-1],m[:-1]).ravel()
     mx=max(scores) if len(scores) else 1
+    query_normalized=re.sub(r"\s+"," ",q.lower()).strip() 
+    ranked=[]
+
     for p,s in zip(papers,scores):
-        p.relevance=round(float(s),4)
-        p.quality=round(min(1,(0.7*float(s)/(mx or 1)) + 0.3*min(1,p.cited_by/100)),4)
-    return sorted(papers,key=lambda p:(p.relevance,p.cited_by),reverse=True)
+        base_score=float(s)
+        p.relevance=round(base_score,4)
+        p.quality=round(min(1,(0.7*base_score/(mx or 1)) + 0.3*min(1,p.cited_by/100)),4)
+        final_score=base_score
+        if exact_match_boost:
+            title=re.sub(r"\s+"," ",(p.title or" ").lower()).strip()
+            abstract=re.sub(r"\s+"," ",(p.abstract or "").lower()).strip()
+            if title==query_normalized:
+                final_score+=0.25
+            elif query_normalized in title:
+                final_score+=0.15
+            elif query_normalized in abstract:
+                final_score+=0.05
+        ranked.append((p,final_score))
+    ranked.sort(key=lambda x:(x[1],x[0].cited_by),reverse=True)
+    return [p for p, _ in ranked]  # pyright: ignore[reportUnknownVariableType]
 
 def pdf_text(url):
     if not url:return ""

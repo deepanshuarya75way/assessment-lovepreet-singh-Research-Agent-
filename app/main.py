@@ -47,6 +47,7 @@ async def run_job(rid, r):
             "year_to": r.year_to,
             "max_papers": r.max_papers,
             "citation_style": r.citation_style,
+            "exact_match_boost":r.exact_match_boost
         }
         node_messages = {
             "planner": ("Planner", "Planning research strategy", 8),

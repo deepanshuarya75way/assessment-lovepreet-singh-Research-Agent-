@@ -35,7 +35,7 @@ def search(s):
     for p in allp:
         k=(p.doi or re.sub(r"\W+","",p.title.lower()))
         if k not in u or p.cited_by>u[k].cited_by:u[k]=p
-    papers=rank(s["question"],list(u.values()))[:s["max_papers"]]
+    papers=rank(s["question"],list(u.values()),exact_match_boost=s.get("exact_match_boost",False))[:s["max_papers"]]
     return {"papers":[score(p) for p in papers]}
 
 def retrieve(s):
